@@ -33,7 +33,6 @@ public class Server implements Runnable {
       }
       // cliente se desconectou
 
-      // pega os ids de todos os clientes e passa para uma lista
       int firstKey = clients.firstKey();
 
       // se tiver mais de um cliente
