@@ -6,6 +6,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
@@ -54,12 +55,13 @@ public class Client {
           } catch (NoSuchElementException e) {
             System.out.println(
                 "Conexão com o servidor perdida. Sua mensagem pode não mais chegar a um destinatário.");
-            connection = false;
             break;
           }
         }
       } catch (IOException e) {
-        e.printStackTrace();
+        System.out.println("Não foi possível se conectar com o servidor no momento...");
+
+        connection = false;
       }
     }
   }
@@ -69,37 +71,42 @@ public class Client {
     @Override
     public void run() {
 
-      try {
-        while (connection) {
-          // cria um buffer para receber a mensagem do nó anterior
-          byte[] bufferRecebimento = new byte[1024];
+      while (connection) {
+        // cria um buffer para receber a mensagem do nó anterior
+        byte[] bufferRecebimento = new byte[1024];
 
-          // cria um datagrama para receber a mensagem
-          DatagramPacket datagramaRecebimento =
-              new DatagramPacket(bufferRecebimento, bufferRecebimento.length);
+        // cria um datagrama para receber a mensagem
+        DatagramPacket datagramaRecebimento =
+            new DatagramPacket(bufferRecebimento, bufferRecebimento.length);
 
-          // recebe a mensagem
+        // recebe a mensagem
+        try {
           socket.receive(datagramaRecebimento);
+        } catch (IOException e) {
+          System.out.println("Falha ao receber uma mensagem...");
+          continue;
+        }
 
-          // pega a mensagem
-          bufferRecebimento = datagramaRecebimento.getData();
+        // pega a mensagem
+        bufferRecebimento = datagramaRecebimento.getData();
 
-          // remove o lixo da string
-          String msgReceived = new String(bufferRecebimento).trim();
+        // remove o lixo da string
+        String msgReceived = new String(bufferRecebimento).trim();
 
-          // mensagem que será enviada para o próximo nó
-          // será a mensagem recebida + id
+        // mensagem que será enviada para o próximo nó
+        // será a mensagem recebida + id
 
-          System.out.printf("Mensagem recebida < %s\n", msgReceived);
+        System.out.printf("Mensagem recebida < %s\n", msgReceived);
 
-          // evita o loop infinito
-          if (!isFirst) {
-            System.out.println(
-                "Incrementando a mensagem com o o meu id e enviando para o próximo cliente...");
-            System.out.println("Mensagem enviada para o cliente de id " + nextClientId);
+        // evita o loop infinito
+        if (!isFirst) {
+          System.out.println(
+              "Incrementando a mensagem com o o meu id e enviando para o próximo cliente...");
+          System.out.println("Mensagem enviada para o cliente de id " + nextClientId);
 
-            String newMessage = String.valueOf(Integer.parseInt(msgReceived) + id);
+          String newMessage = String.valueOf(Integer.parseInt(msgReceived) + id);
 
+          try {
             InetAddress receiverAddress = InetAddress.getByName("localhost");
 
             // cria um datagram para enviar a nova mensagem com o id incrementado
@@ -110,13 +117,13 @@ public class Client {
                     receiverAddress,
                     5050 + nextClientId);
 
-            // envia o datagram para o próximo nó
             socket.send(sendDatagram);
+          } catch (UnknownHostException e) {
+            System.out.println("Host destinatário inexistente...");
+          } catch (IOException e) {
+            System.out.println("Falha ao enviar a mensagem...");
           }
         }
-      } catch (IOException e) {
-        socket.close();
-        connection = false;
       }
     }
   }
@@ -136,7 +143,7 @@ public class Client {
           // apenas números
           while (!NumberUtils.isDigit(msg)) {
             System.out.println("Apenas números são aceitos como mensagem!");
-            msg = sc.next();
+            msg = sc.nextLine();
           }
 
           // cria um buffer de envio a partir da mensagem
@@ -148,13 +155,15 @@ public class Client {
                   sendBuffer, sendBuffer.length, receiverAddress, 5050 + nextClientId);
 
           // printa na tela que está enviando a mensagem
-          System.out.printf("Enviando a mensagem para o cliente de id %d > %s\n", nextClientId, msg);
+          System.out.printf(
+              "Enviando a mensagem para o cliente de id %d > %s\n", nextClientId, msg);
 
           // envia a mensagem
           socket.send(sendDatagram);
         }
       } catch (IOException e) {
         socket.close();
+
         connection = false;
       }
     }
